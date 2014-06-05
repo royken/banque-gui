@@ -1,7 +1,12 @@
 package com.douwe.banque.gui.client;
 
-import com.douwe.banque.data.Operation;
+import com.douwe.banque.data.Account;
+import com.douwe.banque.data.OperationType;
 import com.douwe.banque.gui.common.UserInfo;
+import com.douwe.banque.projection.AccountOperation;
+import com.douwe.banque.service.IBankService;
+import com.douwe.banque.service.ServiceException;
+import com.douwe.banque.service.impl.BankServiceImpl;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -9,12 +14,8 @@ import java.awt.GridLayout;
 import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Date;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -40,10 +41,10 @@ public class MesOperationsListePanel extends JPanel {
     private JTable operationTable;
     private DefaultTableModel tableModel;
     private JButton filtreBtn;
-    private final String accountQuery = "select accountNumber from account where customer_id=?";
-    private Connection conn;
+    private IBankService bankService;
 
     public MesOperationsListePanel() throws Exception {
+        bankService = new BankServiceImpl();
         setLayout(new BorderLayout());
         JPanel hautPanel = new JPanel(new GridLayout(2, 1));
         JPanel pan = new JPanel(new FlowLayout(FlowLayout.CENTER));
@@ -54,13 +55,13 @@ public class MesOperationsListePanel extends JPanel {
         JPanel filtrePanel = new JPanel();
         filtrePanel.setLayout(new FlowLayout());
         filtreBtn = new JButton("Filtrer");
-        comptes = new JComboBox<String>();
-        operations = new JComboBox<String>();
+        comptes = new JComboBox<>();
+        operations = new JComboBox<>();
         operations.addItem("");
-        operations.addItem(Operation.credit.toString());
-        operations.addItem(Operation.debit.toString());
-        operations.addItem(Operation.transfer.toString());
-        operations.addItem(Operation.cloture.toString());
+        operations.addItem(OperationType.credit.toString());
+        operations.addItem(OperationType.debit.toString());
+        operations.addItem(OperationType.transfer.toString());
+        operations.addItem(OperationType.cloture.toString());
         startDate = new JXDatePicker();
         endDate = new JXDatePicker();
         filtrePanel.add(new JLabel("Compte"));
@@ -78,72 +79,41 @@ public class MesOperationsListePanel extends JPanel {
         add(BorderLayout.BEFORE_FIRST_LINE, hautPanel);
         add(BorderLayout.CENTER, new JScrollPane(operationTable));
         filtreBtn.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 try {
                     String selectedCompte = (String) comptes.getSelectedItem();
                     String selectedOperation = (String) operations.getSelectedItem();
                     Date debut = startDate.getDate();
                     Date fin = endDate.getDate();
-                    StringBuilder builder = new StringBuilder("select operations.*, account.accountNumber, users.username from operations, account, users where operations.account_id=account.id and operations.user_id=users.id");
-                    if ((selectedCompte != null) && !("".equals(selectedCompte))) {
-                        builder.append(" and accountNumber = '");
-                        builder.append(selectedCompte);
-                        builder.append("'");
-                    }
-                    if ((selectedOperation != null) && !("".equals(selectedOperation))) {
-                        System.out.println("ddddd  ddd dd d "+selectedOperation);
-                        int index = Operation.valueOf(selectedOperation).ordinal();
-                        builder.append(" and operationType = ");
-                        builder.append(index);
-                    }
-                    if (debut != null) {
-                        builder.append(" and dateOperation >= '");
-                        builder.append(debut.getTime());
-                        builder.append("'");
-                    }
-                    if (fin != null) {
-                        builder.append(" and dateOperation <= '");
-                        builder.append(fin.getTime());
-                        builder.append("'");
-                    }
-                    conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                    PreparedStatement pStat = conn.prepareStatement(builder.toString());
-                    ResultSet rs = pStat.executeQuery();
+                    List<AccountOperation> result = bankService.findOperationByCriteria(selectedCompte, UserInfo.getUsername(), OperationType.valueOf(selectedOperation), debut, fin);
                     tableModel.setNumRows(0);
-                    while (rs.next()) {                        
-                        tableModel.addRow(new Object[]{Operation.values()[rs.getInt("operationType")],
-                            rs.getString("accountNumber"),
-                            rs.getDate("dateOperation"),
-                            rs.getString("username"),
-                            rs.getString("description")});
+                    for (AccountOperation accountOperation : result) {
+                        tableModel.addRow(new Object[]{accountOperation.getType(),
+                            accountOperation.getAccountNumber(),
+                            accountOperation.getDateOperation(),
+                            accountOperation.getUsername(),
+                            accountOperation.getDescription()});
                     }
-                    pStat.close();
-                    conn.close();
-                } catch (SQLException ex) {
+
+                } catch (ServiceException ex) {
                     JOptionPane.showMessageDialog(null, "Impossible de filtrer vos données");
                     Logger.getLogger(MesOperationsListePanel.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         });
         comptes.addItem("");
-        conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-        PreparedStatement st2 = conn.prepareStatement(accountQuery);
-        st2.setInt(1, UserInfo.getCustomerId());
-        ResultSet rs2 = st2.executeQuery();
-        while(rs2.next()){
-            comptes.addItem(rs2.getString("accountNumber"));
+        List<Account> accounts = bankService.findAccountByCustomerId(UserInfo.getCustomerId());
+        for (Account account : accounts) {
+            comptes.addItem(account.getAccountNumber());
         }
-        st2.close();
-        PreparedStatement pStat = conn.prepareStatement("select operations.*, account.accountNumber, users.username from operations, account, users where operations.account_id=account.id and operations.user_id=users.id");
-        ResultSet rs = pStat.executeQuery();
-        while (rs.next()) {
-            tableModel.addRow(new Object[]{rs.getInt("operationType"),
-                rs.getString("accountNumber"),
-                rs.getDate("dateOperation"),
-                rs.getString("username"),
-                rs.getString("description")});
+        List<AccountOperation> values = bankService.findOperationFromCustomerAccounts(UserInfo.getCustomerId());
+        for (AccountOperation accountOperation : values) {
+            tableModel.addRow(new Object[]{accountOperation.getType(),
+                accountOperation.getAccountNumber(),
+                accountOperation.getDateOperation(),
+                accountOperation.getUsername(),
+                accountOperation.getDescription()});
         }
-        pStat.close();
-        conn.close();
     }
 }

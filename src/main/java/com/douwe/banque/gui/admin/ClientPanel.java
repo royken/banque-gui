@@ -1,17 +1,17 @@
 package com.douwe.banque.gui.admin;
 
+import com.douwe.banque.data.Customer;
 import com.douwe.banque.gui.MainMenuPanel;
+import com.douwe.banque.service.IBankService;
+import com.douwe.banque.service.ServiceException;
+import com.douwe.banque.service.impl.BankServiceImpl;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -36,11 +36,12 @@ public class ClientPanel extends JPanel {
     private JTable clientTable;
     private DefaultTableModel tableModel;
     private JTextField nameText;
-    private Connection conn;
+    private IBankService bankService;
     private MainMenuPanel parent;
 
     public ClientPanel(MainMenuPanel parentFrame) {
         try {
+            bankService = new BankServiceImpl();
             setLayout(new BorderLayout());
             this.parent = parentFrame;
             JPanel haut = new JPanel();
@@ -58,27 +59,21 @@ public class ClientPanel extends JPanel {
             modifierBtn = new JButton("Modifier");
             filtreBtn = new JButton("Filtrer");
             filtreBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     String name = nameText.getText();
                     //if ((name != null) && !("".equals(name))) {
                         try {
-                            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                            PreparedStatement pst = conn.prepareStatement("select * from customer where status = ? and name like ?");
-                            pst.setInt(1, 0);
-                            pst.setString(2, "%" + name + "%");
-                            ResultSet rs = pst.executeQuery();
+                            List<Customer> customers = bankService.findCustomerByName(name);                            
                             tableModel.setRowCount(0);
-                            while (rs.next()) {
-                                tableModel.addRow(new Object[]{rs.getInt("id"),
-                                    rs.getString("name"),
-                                    rs.getString("emailAddress"),
-                                    rs.getString("phoneNumber")
+                            for (Customer customer : customers) {                                
+                                tableModel.addRow(new Object[]{customer.getId(),
+                                    customer.getName(),
+                                    customer.getEmailAddress(),
+                                    customer.getPhoneNumber()
                                 });
                             }
-                            rs.close();
-                            pst.close();
-                            conn.close();
-                        } catch (SQLException ex) {
+                        } catch (ServiceException ex) {
                             JOptionPane.showMessageDialog(null, "Impossible de filtrer vos données");
                             Logger.getLogger(ClientPanel.class.getName()).log(Level.SEVERE, null, ex);
                         }
@@ -86,11 +81,13 @@ public class ClientPanel extends JPanel {
                 //}
             });
             nouveauBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     parent.setContenu(new NouveauClientPanel(parent));
                 }
             });
             modifierBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     int selected = clientTable.getSelectedRow();
                     if (selected >= 0){
@@ -101,20 +98,15 @@ public class ClientPanel extends JPanel {
                 }
             });
             supprimerBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     int selected = clientTable.getSelectedRow();
                     if (selected >=0){
                         try {
-                            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");                            
-                            PreparedStatement psmt = conn.prepareStatement("update customer set status = ? where id = ?");
-                            psmt.setInt(1, 1);
-                            psmt.setInt(2, (Integer)tableModel.getValueAt(selected, 0));                            
-                            if(psmt.executeUpdate() > 0){
-                                tableModel.removeRow(selected);
-                            }
-                            psmt.close();
-                            conn.close();
-                        } catch (SQLException ex) {
+                            bankService.deleteCustomer((Integer)tableModel.getValueAt(selected, 0));                            
+                            tableModel.removeRow(selected);
+                           
+                        } catch (ServiceException ex) {
                             JOptionPane.showMessageDialog(null, "Erreur lors de la suppression du client "+ tableModel.getValueAt(selected, 1));
                             Logger.getLogger(ClientPanel.class.getName()).log(Level.SEVERE, null, ex);
                         }
@@ -139,21 +131,15 @@ public class ClientPanel extends JPanel {
             clientTable.removeColumn(clientTable.getColumnModel().getColumn(0));
             contenu.add(BorderLayout.CENTER, new JScrollPane(clientTable));
             add(BorderLayout.CENTER, contenu);
-            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-            PreparedStatement pst = conn.prepareStatement("select * from customer where status = ?");
-            pst.setInt(1, 0);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
-                tableModel.addRow(new Object[]{rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getString("emailAddress"),
-                    rs.getString("phoneNumber")
+            List<Customer> customers = bankService.findAllCustomer();
+            for (Customer customer : customers) {
+                tableModel.addRow(new Object[]{customer.getId(),
+                    customer.getName(),
+                    customer.getEmailAddress(),
+                    customer.getPhoneNumber()
                 });
             }
-            rs.close();
-            pst.close();
-            conn.close();
-        } catch (SQLException ex) {
+        } catch (ServiceException ex) {
             Logger.getLogger(ClientPanel.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

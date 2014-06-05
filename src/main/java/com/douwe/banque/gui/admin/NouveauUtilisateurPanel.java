@@ -1,7 +1,11 @@
 package com.douwe.banque.gui.admin;
 
 import com.douwe.banque.data.RoleType;
+import com.douwe.banque.data.User;
 import com.douwe.banque.gui.MainMenuPanel;
+import com.douwe.banque.service.IBankService;
+import com.douwe.banque.service.ServiceException;
+import com.douwe.banque.service.impl.BankServiceImpl;
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
 import java.awt.BorderLayout;
@@ -9,10 +13,6 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -34,10 +34,11 @@ public class NouveauUtilisateurPanel extends JPanel {
     private JPasswordField passwdText2;
     private JComboBox<RoleType> role;
     private JButton enregistrer;
-    private Connection conn;
+    private IBankService bankService;
     private MainMenuPanel parent;
 
     public NouveauUtilisateurPanel(MainMenuPanel parentFrame) {
+        bankService = new BankServiceImpl();
         setLayout(new BorderLayout(20, 20)); 
         this.parent = parentFrame;
         JPanel haut = new JPanel(new FlowLayout(FlowLayout.CENTER));
@@ -49,13 +50,14 @@ public class NouveauUtilisateurPanel extends JPanel {
         builder.append("Login", loginText = new JTextField());
         builder.append("Mot de Passe", passwdText1 = new JPasswordField());
         builder.append("Retapez mot de passe",passwdText2 = new JPasswordField());
-        builder.append("Role", role = new JComboBox<RoleType>());
+        builder.append("Role", role = new JComboBox<>());
         role.addItem(null);
         role.addItem(RoleType.admin);
         role.addItem(RoleType.employee);
         builder.append(enregistrer = new JButton("Enregistrer"));
         add(BorderLayout.CENTER,builder.getPanel());
         enregistrer.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 try {
                     String login = loginText.getText();
@@ -78,16 +80,13 @@ public class NouveauUtilisateurPanel extends JPanel {
                         JOptionPane.showMessageDialog(null, "Le role est obligatoire");
                         return;
                     }
-                    conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                    PreparedStatement pst = conn.prepareStatement("insert into users (username,passwd,role) values(?,?,?)");
-                    pst.setString(1, login.toLowerCase());
-                    pst.setString(2, pwd);
-                    pst.setInt(3, ro.ordinal());
-                    pst.executeUpdate();
-                    pst.close();
-                    conn.close();
+                    User user = new User();
+                    user.setLogin(login.toLowerCase());
+                    user.setPassword(pwd);
+                    user.setRole(ro);
+                    bankService.saveOrUpdateUser(user);
                     parent.setContenu(new UtilisateurPanel(parent));
-                } catch (SQLException ex) {
+                } catch (ServiceException ex) {
                     JOptionPane.showMessageDialog(null, "Impossible de créer le compte");
                     Logger.getLogger(NouveauUtilisateurPanel.class.getName()).log(Level.SEVERE, null, ex);
                 }

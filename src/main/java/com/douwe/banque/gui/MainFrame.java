@@ -1,7 +1,13 @@
 package com.douwe.banque.gui;
 
+import com.douwe.banque.dao.jdbc.JDBCConnectionFactory;
 import com.douwe.banque.gui.common.LoginPanel;
 import java.awt.BorderLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -10,10 +16,10 @@ import javax.swing.JPanel;
  * @author Vincent Douwe <douwevincent@yahoo.fr>
  */
 public class MainFrame extends JFrame {
-
+    
     private HeaderPanel headerPanel;
     private JPanel contentPanel;
-
+    
     public MainFrame() {
         setTitle("Ma banque populaire vraiment populaire");
         getContentPane().setLayout(new BorderLayout(10, 10));
@@ -47,6 +53,19 @@ public class MainFrame extends JFrame {
         };
         contentPanel.add(login, BorderLayout.CENTER);
         getContentPane().add(contentPanel, BorderLayout.CENTER);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        //setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+                try {
+                    JDBCConnectionFactory.getConnection().close();
+                    System.exit(0);
+                } catch (SQLException ex) {
+                    Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+            
+        });
     }
 }
