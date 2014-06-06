@@ -47,7 +47,8 @@ public class BankServiceImpl implements IBankService {
     @Override
     public Customer findCustomerByLogin(String login) throws ServiceException {
         try {
-            return daoFactory.getCustomerDao().findByLogin(login);
+            User user = daoFactory.getUserDao().findByLogin(login);
+            return daoFactory.getCustomerDao().findByUser(user);
         } catch (DataAccessException ex) {
             Logger.getLogger(BankServiceImpl.class.getName()).log(Level.SEVERE, null, ex);
             throw new ServiceException(ex);
@@ -99,7 +100,8 @@ public class BankServiceImpl implements IBankService {
     public List<Account> findAccountByCustomerId(Integer id) throws ServiceException {
         List<Account> result = new ArrayList<>();
         try {
-            for (Account account : daoFactory.getAccountDao().findByCustomerId(id)){
+            Customer customer = daoFactory.getCustomerDao().findById(id);
+            for (Account account : daoFactory.getAccountDao().findByCustomer(customer)){
                 if (account.getStatus() == 0)
                     result.add(account);
             }
@@ -479,8 +481,9 @@ public class BankServiceImpl implements IBankService {
     @Override
     public List<AccountOperation> findOperationFromCustomerAccounts(int customerId) throws ServiceException {
         List<AccountOperation> result = new ArrayList<>();
-        try {            
-            List<Operation> ops = daoFactory.getOperationDao().findForCustomer(customerId);        
+        try {  
+            Customer customer = daoFactory.getCustomerDao().findById(customerId);
+            List<Operation> ops = daoFactory.getOperationDao().findForCustomer(customer);        
             for (Operation operation : ops) {
                 result.add(new AccountOperation(operation.getUser().getLogin(), operation.getAccount().getAccountNumber(), operation));
             }

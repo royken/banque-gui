@@ -134,12 +134,12 @@ public class CustomerDaoJDBC implements ICustomerDao {
     }
 
     @Override
-    public Customer findByLogin(String login) throws DataAccessException {
+    public Customer findByUser(User us) throws DataAccessException {
         Customer customer = null;
         try {
             Connection conn = JDBCConnectionFactory.getConnection();
             PreparedStatement psmt = conn.prepareStatement("select c.id as cid, c.emailAddress, c.phoneNumber, c.name,c.status as cstatus, u.id, u.username, u.passwd, u.status, u.role from customer c, users u where c.user_id=u.id and u.username = ?");
-            psmt.setString(1, login);
+            psmt.setString(1, us.getLogin());
             ResultSet rs = psmt.executeQuery();
             if (rs.next()) {
                 customer = new Customer();

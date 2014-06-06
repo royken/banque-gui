@@ -4,6 +4,7 @@ import com.douwe.banque.dao.DataAccessException;
 import com.douwe.banque.dao.IOperationDao;
 import com.douwe.banque.data.Account;
 import com.douwe.banque.data.AccountType;
+import com.douwe.banque.data.Customer;
 import com.douwe.banque.data.Operation;
 import com.douwe.banque.data.OperationType;
 import com.douwe.banque.data.RoleType;
@@ -159,12 +160,12 @@ public class OperationDaoJDBC implements IOperationDao {
     }
 
     @Override
-    public List<Operation> findForCustomer(int customerId) throws DataAccessException {
+    public List<Operation> findForCustomer(Customer cust) throws DataAccessException {
         try {
             List<Operation> result = new ArrayList<>();
             Connection conn = JDBCConnectionFactory.getConnection();
             PreparedStatement psmt = conn.prepareStatement("select o.*, u.id as uid, u.username, u.passwd, u.role, u.status, a.id as aid, a.accountNumber, a.balance, a.dateCreation, a.type, a.status as astatus from operations o, users u, account a where o.user_id = u.id and o.account_id = a.id and a.customer_id = ?");
-            psmt.setInt(1, customerId);
+            psmt.setInt(1, cust.getId());
             ResultSet rs = psmt.executeQuery();
             while (rs.next()) {
                 Operation op = new Operation();

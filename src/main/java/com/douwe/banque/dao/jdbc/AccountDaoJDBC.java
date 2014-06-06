@@ -179,12 +179,12 @@ public class AccountDaoJDBC implements IAccountDao {
     }
 
     @Override
-    public List<Account> findByCustomerId(Integer id) throws DataAccessException {
+    public List<Account> findByCustomer(Customer cust) throws DataAccessException {
         List<Account> result = new ArrayList<>();
         try {            
             Connection conn = JDBCConnectionFactory.getConnection();
             PreparedStatement psmt = conn.prepareStatement("select a.id as aid, a.accountNumber, a.balance, a.status as astatus, a.type as atype, a.dateCreation, c.* from account a, customer c where a.customer_id = c.id and c.id = ?");
-            psmt.setInt(1, id);
+            psmt.setInt(1, cust.getId());
             ResultSet rs  = psmt.executeQuery();
             while(rs.next()){
                 Account account = new Account();

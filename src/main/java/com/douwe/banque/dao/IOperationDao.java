@@ -1,5 +1,6 @@
 package com.douwe.banque.dao;
 
+import com.douwe.banque.data.Customer;
 import com.douwe.banque.data.Operation;
 import java.util.List;
 
@@ -50,9 +51,9 @@ public interface IOperationDao {
 
     /**
      * renvoie la liste des opérations qui ont traits à un compte détenu par un client
-     * @param customerId l'identifiant du titulaire des comptes
+     * @param customer le client titulaire des comptes
      * @return la liste des opérations liées aux comptes détenus par le client dont l'identifiant est passé en paramètre
      * @throws DataAccessException si un événement non prévu survient
      */
-    public List<Operation> findForCustomer(int customerId) throws DataAccessException;
+    public List<Operation> findForCustomer(Customer customer) throws DataAccessException;
 }
