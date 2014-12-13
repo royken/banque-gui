@@ -1,20 +1,19 @@
 package com.douwe.banque.gui.admin;
 
+import com.douwe.banque.data.Account;
 import com.douwe.banque.data.AccountType;
-import com.douwe.banque.data.Operation;
 import com.douwe.banque.gui.MainMenuPanel;
+import com.douwe.banque.projection.AccountCustomer;
+import com.douwe.banque.service.IBankService;
+import com.douwe.banque.service.ServiceException;
+import com.douwe.banque.service.impl.BankServiceImpl;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -42,11 +41,12 @@ public class ComptePanel extends JPanel {
     private JTextField nameText;
     private JTextField numberText;
     private JComboBox<AccountType> type;
-    private Connection conn;
+    private IBankService bankService;
     private MainMenuPanel parent;
 
     public ComptePanel(MainMenuPanel parentFrame) {
         try {
+            bankService = new BankServiceImpl();
             this.parent = parentFrame;
             setLayout(new BorderLayout());
             JPanel haut = new JPanel();
@@ -64,43 +64,23 @@ public class ComptePanel extends JPanel {
             modifierBtn = new JButton("Modifier");
             filtreBtn = new JButton("Filtrer");
             filtreBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     try {
                         String client = nameText.getText();
                         String accountNumber = numberText.getText();
                         AccountType ty = (AccountType) type.getSelectedItem();
-                        StringBuilder query = new StringBuilder("select account.*, customer.name from account, customer where customer.id = account.customer_id and account.status = ?");
-                        if ((client != null) && !("".equals(client))) {
-                            query.append("and name like '%");
-                            query.append(client);
-                            query.append("%'");
-                        }
-                        if ((accountNumber != null) && !("".equals(accountNumber))) {
-                            query.append("and accountNumber like '%");
-                            query.append(client);
-                            query.append("%'");
-                        }
-                        if (ty != null) {
-                            query.append("and type = ");
-                            query.append(ty.ordinal());
-                        }
-                        conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                        PreparedStatement st = conn.prepareStatement(query.toString());
-                        st.setInt(1, 0);
-                        ResultSet rs = st.executeQuery();
+                        List<AccountCustomer> values = bankService.findAccountByCriteria(client, accountNumber, ty);                        
                         tableModel.setRowCount(0);
-                        while (rs.next()) {
-                            tableModel.addRow(new Object[]{rs.getInt("id"),
-                                rs.getString("accountNumber"),
-                                rs.getDouble("balance"),
-                                rs.getDate("dateCreation"),
-                                rs.getInt("type") == 0 ? AccountType.deposit.toString() : AccountType.saving.toString(),
-                                rs.getString("name")});
+                        for (AccountCustomer accountCustomer : values) {                            
+                            tableModel.addRow(new Object[]{accountCustomer.getId(),
+                                accountCustomer.getAccountNumber(),
+                                accountCustomer.getBalance(),
+                                accountCustomer.getDateDeCreation(),
+                                accountCustomer.getType(),
+                                accountCustomer.getCustomerName()});
                         }
-                        rs.close();
-                        st.close();
-                        conn.close();
-                    } catch (SQLException ex) {
+                    } catch (ServiceException ex) {
                         JOptionPane.showMessageDialog(null, "Impossible d'appliquer le filtre");
                         Logger.getLogger(ComptePanel.class.getName()).log(Level.SEVERE, null, ex);
                     }
@@ -108,11 +88,13 @@ public class ComptePanel extends JPanel {
                 }
             });
             nouveauBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     parent.setContenu(new NouveauComptePanel(parent));
                 }
             });
             modifierBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     int selected = compteTable.getSelectedRow();
                     if (selected >= 0) {
@@ -123,30 +105,16 @@ public class ComptePanel extends JPanel {
                 }
             });
             supprimerBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     int selected = compteTable.getSelectedRow();
                     if (selected >= 0) {
                         try {
                             String accountNumber = (String) tableModel.getValueAt(selected, 1);
-                            System.out.println("fdddfdf "+accountNumber);
-                            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                            conn.setAutoCommit(false);
-                            PreparedStatement pst = conn.prepareStatement("update account set status = ? where accountNumber = ?");
-                            pst.setInt(1, 1);
-                            pst.setString(2, accountNumber);
-                            PreparedStatement st = conn.prepareStatement("insert into operations(operationType,dateOperation,description,account_id, user_id) values(?,?,?,?,?)");
-                            st.setInt(1, Operation.cloture.ordinal());
-                            st.setDate(2, new Date(new java.util.Date().getTime()));
-                            st.setString(3, "Cloture du compte " + accountNumber);
-                            st.setInt(4, (Integer) tableModel.getValueAt(selected, 0));
-                            st.setInt(5, 1);
-                            st.executeUpdate();   
-                            pst.executeUpdate();
-                            conn.commit();
-                            pst.close();
-                            conn.close();
+                            Account acc = bankService.findAccountByNumber(accountNumber);
+                            bankService.deleteAccount(acc.getId());
                             tableModel.removeRow(selected);
-                        } catch (SQLException ex) {
+                        } catch (ServiceException ex) {
                             JOptionPane.showMessageDialog(null, "Impossible de supprimer ce compte");
                             Logger.getLogger(ComptePanel.class.getName()).log(Level.SEVERE, null, ex);
                         }
@@ -168,7 +136,7 @@ public class ComptePanel extends JPanel {
             filtrePanel.add(numberText = new JTextField());
             numberText.setPreferredSize(new Dimension(100, 25));
             filtrePanel.add(new JLabel("Type Compte"));
-            filtrePanel.add(type = new JComboBox<AccountType>());
+            filtrePanel.add(type = new JComboBox<>());
             type.setPreferredSize(new Dimension(100, 25));
             type.addItem(null);
             type.addItem(AccountType.deposit);
@@ -186,22 +154,16 @@ public class ComptePanel extends JPanel {
             compteTable.removeColumn(compteTable.getColumnModel().getColumn(0));
             contenu.add(BorderLayout.CENTER, new JScrollPane(compteTable));
             add(BorderLayout.CENTER, contenu);
-            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-            PreparedStatement pst = conn.prepareStatement("select account.*, customer.name from account, customer where account.customer_id = customer.id and account.status = ?");
-            pst.setInt(1, 0);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
-                tableModel.addRow(new Object[]{rs.getInt("id"),
-                    rs.getString("accountNumber"),
-                    rs.getDouble("balance"),
-                    rs.getDate("dateCreation"),
-                    rs.getInt("type") == 0 ? AccountType.deposit.toString() : AccountType.saving.toString(),
-                    rs.getString("name")});
+            List<AccountCustomer> values = bankService.findAllAccountCustomer();
+            for (AccountCustomer accountCustomer : values) {                
+                tableModel.addRow(new Object[]{accountCustomer.getId(),
+                    accountCustomer.getAccountNumber(),
+                    accountCustomer.getBalance(),
+                    accountCustomer.getDateDeCreation(),
+                    accountCustomer.getType(),
+                    accountCustomer.getCustomerName()});
             }
-            rs.close();
-            pst.close();
-            conn.close();
-        } catch (SQLException ex) {
+        } catch (ServiceException ex) {
             Logger.getLogger(ComptePanel.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

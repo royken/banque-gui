@@ -47,6 +47,7 @@ public class MainMenuPanel extends JPanel {
         mesComptes = new JXHyperlink();
         mesComptes.setText("Mes Comptes");
         mesComptes.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 try {
                     setContenu(new MesCompteListePanel());
@@ -60,6 +61,7 @@ public class MainMenuPanel extends JPanel {
         mesOperations = new JXHyperlink();
         mesOperations.setText("Mes Opérations");
         mesOperations.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 try {
                     setContenu(new MesOperationsListePanel());
@@ -73,6 +75,7 @@ public class MainMenuPanel extends JPanel {
         tranfer = new JXHyperlink();
         tranfer.setText("Transfert");
         tranfer.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 try {
                     setContenu(new TransfertPanel());
@@ -91,6 +94,7 @@ public class MainMenuPanel extends JPanel {
         };
         utilisateurs.setText("Utilisateurs");
         utilisateurs.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 setContenu(new UtilisateurPanel(MainMenuPanel.this));
             }
@@ -100,6 +104,7 @@ public class MainMenuPanel extends JPanel {
         comptes = new JXHyperlink();
         comptes.setText("Comptes");
         comptes.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 setContenu(new ComptePanel(MainMenuPanel.this));
             }
@@ -111,9 +116,10 @@ public class MainMenuPanel extends JPanel {
             public boolean isVisible() {
                 return UserInfo.getRole() == RoleType.admin;
             }
-        };;
+        };
         operations.setText("Opérations");
         operations.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 setContenu(new OperationsPanel());
             }
@@ -123,6 +129,7 @@ public class MainMenuPanel extends JPanel {
         customer = new JXHyperlink();
         customer.setText("Clients");
         customer.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 setContenu(new ClientPanel(MainMenuPanel.this));
             }
@@ -153,6 +160,7 @@ public class MainMenuPanel extends JPanel {
         debit.setUnclickedColor(Color.blue);
         debit.setClickedColor(Color.blue);
         debit.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 setContenu(new NouveauDebitPanel(MainMenuPanel.this));
             }
@@ -162,6 +170,7 @@ public class MainMenuPanel extends JPanel {
         credit.setUnclickedColor(Color.blue);
         credit.setClickedColor(Color.blue);
         credit.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 setContenu(new NouveauDepotPanel(MainMenuPanel.this));
             }
@@ -184,8 +193,9 @@ public class MainMenuPanel extends JPanel {
         profilPane.add(profil = new JXHyperlink());
         profil.setText("Profil");
         profil.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent ae) {
-                JOptionPane.showMessageDialog(null, "si j'implémente tout alors que feront mes étudiants?");
+                JOptionPane.showMessageDialog(null, "Oops Si j'implémente tout alors que feront mes étudiants?");
             }
         });
         profil.setUnclickedColor(Color.blue);

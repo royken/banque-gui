@@ -1,20 +1,19 @@
 package com.douwe.banque.gui.admin;
 
-import com.douwe.banque.data.Operation;
+import com.douwe.banque.data.OperationType;
 import com.douwe.banque.gui.client.MesOperationsListePanel;
+import com.douwe.banque.projection.AccountOperation;
+import com.douwe.banque.service.IBankService;
+import com.douwe.banque.service.ServiceException;
+import com.douwe.banque.service.impl.BankServiceImpl;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Date;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -38,14 +37,15 @@ public class OperationsPanel extends JPanel {
     private DefaultTableModel tableModel;
     private JTextField clientText;
     private JTextField compteText;
-    private JComboBox<Operation> type;
+    private JComboBox<OperationType> type;
     private JButton filtreBtn;
     private JXDatePicker startDate;
     private JXDatePicker endDate;
-    private Connection conn;
+    private IBankService bankService;
 
     public OperationsPanel() {
         try {
+            bankService = new BankServiceImpl();
             setLayout(new BorderLayout());
             JPanel haut = new JPanel();
             haut.setLayout(new FlowLayout(FlowLayout.CENTER));
@@ -58,10 +58,11 @@ public class OperationsPanel extends JPanel {
             JPanel filtrePanel = new JPanel();
             filtreBtn = new JButton("Filtrer");
             filtreBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     try {
                         String selectedCompte = compteText.getText();
-                        Operation selectedOperation = (Operation) type.getSelectedItem();
+                        OperationType selectedOperation = (OperationType) type.getSelectedItem();
                         String client = clientText.getText();
                         Date debut = startDate.getDate();
                         Date fin = endDate.getDate();
@@ -91,21 +92,16 @@ public class OperationsPanel extends JPanel {
                             builder.append(fin.getTime());
                             builder.append("'");
                         }
-                        System.out.println("ddd ddd "+builder.toString());
-                        conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                        PreparedStatement pStat = conn.prepareStatement(builder.toString());
-                        ResultSet rs = pStat.executeQuery();
+                        List<AccountOperation> operations = bankService.findOperationByCriteria(selectedCompte, client, selectedOperation, debut, fin);
                         tableModel.setNumRows(0);
-                        while (rs.next()) {
-                            tableModel.addRow(new Object[]{Operation.values()[rs.getInt("operationType")],
-                                rs.getString("accountNumber"),
-                                rs.getDate("dateOperation"),
-                                rs.getString("username"),
-                                rs.getString("description")});
+                        for (AccountOperation accountOperation : operations) {
+                            tableModel.addRow(new Object[]{accountOperation.getType(),
+                                accountOperation.getAccountNumber(),
+                                accountOperation.getDateOperation(),
+                                accountOperation.getUsername(),
+                                accountOperation.getDescription()});
                         }
-                        pStat.close();
-                        conn.close();
-                    } catch (SQLException ex) {
+                    } catch (ServiceException ex) {
                         JOptionPane.showMessageDialog(null, "Impossible de filtrer vos données");
                         Logger.getLogger(MesOperationsListePanel.class.getName()).log(Level.SEVERE, null, ex);
                     }
@@ -119,13 +115,13 @@ public class OperationsPanel extends JPanel {
             filtrePanel.add(compteText = new JTextField());
             compteText.setPreferredSize(new Dimension(100, 25));
             filtrePanel.add(new JLabel("Type Compte"));
-            filtrePanel.add(type = new JComboBox<Operation>());
+            filtrePanel.add(type = new JComboBox<>());
             type.setPreferredSize(new Dimension(100, 25));
             type.addItem(null);
-            type.addItem(Operation.cloture);
-            type.addItem(Operation.credit);
-            type.addItem(Operation.debit);
-            type.addItem(Operation.transfer);
+            type.addItem(OperationType.cloture);
+            type.addItem(OperationType.credit);
+            type.addItem(OperationType.debit);
+            type.addItem(OperationType.transfer);
             filtrePanel.add(new JLabel("Début"));
             filtrePanel.add(startDate = new JXDatePicker());
             filtrePanel.add(new JLabel("Fin"));
@@ -136,20 +132,28 @@ public class OperationsPanel extends JPanel {
             operationTable = new JTable(tableModel);
             contenu.add(BorderLayout.CENTER, new JScrollPane(operationTable));
             add(BorderLayout.CENTER, contenu);
-            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-            Statement st = conn.createStatement();
-            ResultSet rs = st.executeQuery("select operations.*, account.accountNumber, users.username from operations, account, users where account.id = operations.account_id and users.id = operations.user_id");
-            while (rs.next()) {
-                tableModel.addRow(new Object[]{Operation.values()[rs.getInt("operationType")],
-                    rs.getString("accountNumber"),
-                    rs.getDate("dateOperation"),
-                    rs.getString("username"),
-                    rs.getString("description")});
+            /*conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("select operations.*, account.accountNumber, users.username from operations, account, users where account.id = operations.account_id and users.id = operations.user_id");
+             while (rs.next()) {
+             tableModel.addRow(new Object[]{OperationType.values()[rs.getInt("operationType")],
+             rs.getString("accountNumber"),
+             rs.getDate("dateOperation"),
+             rs.getString("username"),
+             rs.getString("description")});
+             }
+             rs.close();
+             st.close();
+             conn.close();*/
+            List<AccountOperation> ops = bankService.findAllOperations();
+            for (AccountOperation accountOperation : ops) {
+                tableModel.addRow(new Object[]{accountOperation.getType(),
+                    accountOperation.getAccountNumber(),
+                    accountOperation.getDateOperation(),
+                    accountOperation.getUsername(),
+                    accountOperation.getDescription()});
             }
-            rs.close();
-            st.close();
-            conn.close();
-        } catch (SQLException ex) {
+        } catch (ServiceException ex) {
             Logger.getLogger(OperationsPanel.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

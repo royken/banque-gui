@@ -1,18 +1,18 @@
 package com.douwe.banque.gui.admin;
 
 import com.douwe.banque.data.RoleType;
+import com.douwe.banque.data.User;
 import com.douwe.banque.gui.MainMenuPanel;
+import com.douwe.banque.service.IBankService;
+import com.douwe.banque.service.ServiceException;
+import com.douwe.banque.service.impl.BankServiceImpl;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -39,11 +39,13 @@ public class UtilisateurPanel extends JPanel {
     private JComboBox<RoleType> role;
     private JTable utilisateurTable;
     private DefaultTableModel tableModel;
-    private Connection conn;
+    private IBankService bankService;
+    //private Connection conn;
     private MainMenuPanel parent;
 
     public UtilisateurPanel(MainMenuPanel parentFrame) {
         try {
+            bankService = new BankServiceImpl();
             setLayout(new BorderLayout());
             this.parent = parentFrame;
             JPanel haut = new JPanel();
@@ -61,58 +63,41 @@ public class UtilisateurPanel extends JPanel {
             initialiserPasswdBtn = new JButton("Reinitialiser Mot de Passe");
             filtreBtn = new JButton("Filtrer");
             filtreBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     try {
                         String username = loginText.getText();
                         RoleType roleN = (RoleType) role.getSelectedItem();
-                        StringBuilder query = new StringBuilder("select * from users where status = ?");
-                        if ((username != null) && !("".equals(username))) {
-                            query.append("and username like '%");
-                            query.append(username);
-                            query.append("%'");
-                        }
-                        if (roleN != null) {
-                            query.append("and role = ");
-                            query.append(roleN.ordinal());
-                        }
-                        conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                        PreparedStatement pst = conn.prepareStatement(query.toString());
-                        pst.setInt(1, 0);
-                        ResultSet rs = pst.executeQuery();
+                        List<User> users = bankService.findUserByNameAndRole(username, roleN);
                         tableModel.setRowCount(0);
-                        while (rs.next()) {
-                            tableModel.addRow(new Object[]{rs.getInt("id"),
-                                rs.getString("username"),
-                                RoleType.values()[rs.getInt("role")]});
+                        for (User user : users) {
+                            tableModel.addRow(new Object[]{user.getId(),
+                                user.getLogin(),
+                                user.getRole()});
                         }
-                        rs.close();
-                        pst.close();
-                        conn.close();
-                    } catch (SQLException ex) {
+                    } catch (ServiceException ex) {
                         JOptionPane.showMessageDialog(null, "Impossible de filtrer vos données");
                         Logger.getLogger(UtilisateurPanel.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
             });
             nouveauBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     parent.setContenu(new NouveauUtilisateurPanel(parent));
                 }
             });
             initialiserPasswdBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     int selected = utilisateurTable.getSelectedRow();
                     if (selected >= 0) {
                         try {
-                            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                            PreparedStatement pst = conn.prepareStatement("update users set passwd = ? where id = ?");
-                            pst.setString(1, "admin");
-                            pst.setInt(2, (Integer) tableModel.getValueAt(selected, 0));
-                            pst.executeUpdate();
-                            pst.close();
-                            conn.close();
+                            User user = bankService.findUserById((Integer) tableModel.getValueAt(selected, 0));
+                            user.setPassword("admin");
+                            bankService.saveOrUpdateUser(user);
                             JOptionPane.showMessageDialog(null, "Le mot de passe est reinitialisé à 'admin'");
-                        } catch (SQLException ex) {
+                        } catch (ServiceException ex) {
                             JOptionPane.showMessageDialog(null, "Impossible de reinitialiser le mot de passe");
                             Logger.getLogger(UtilisateurPanel.class.getName()).log(Level.SEVERE, null, ex);
                         }
@@ -122,19 +107,14 @@ public class UtilisateurPanel extends JPanel {
                 }
             });
             supprimerBtn.addActionListener(new ActionListener() {
+                @Override
                 public void actionPerformed(ActionEvent ae) {
                     int selected = utilisateurTable.getSelectedRow();
                     if (selected >= 0) {
                         try {
-                            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-                            PreparedStatement pst = conn.prepareStatement("update users set status = ? where id = ?");
-                            pst.setInt(1, 1);
-                            pst.setInt(2, (Integer) tableModel.getValueAt(selected, 0));
-                            pst.executeUpdate();
-                            pst.close();
-                            conn.close();
+                            bankService.deleteUser((Integer) tableModel.getValueAt(selected, 0));
                             tableModel.removeRow(selected);
-                        } catch (SQLException ex) {
+                        } catch (ServiceException ex) {
                             JOptionPane.showMessageDialog(null, "Impossible de supprimer cet utilisateur");
                             Logger.getLogger(UtilisateurPanel.class.getName()).log(Level.SEVERE, null, ex);
                         }
@@ -152,7 +132,7 @@ public class UtilisateurPanel extends JPanel {
             filtrePanel.add(loginText = new JTextField());
             loginText.setPreferredSize(new Dimension(100, 25));
             filtrePanel.add(new JLabel("Type Compte"));
-            filtrePanel.add(role = new JComboBox<RoleType>());
+            filtrePanel.add(role = new JComboBox<>());
             role.setPreferredSize(new Dimension(100, 25));
             role.addItem(null);
             role.addItem(RoleType.customer);
@@ -166,19 +146,15 @@ public class UtilisateurPanel extends JPanel {
             utilisateurTable.removeColumn(utilisateurTable.getColumnModel().getColumn(0));
             contenu.add(BorderLayout.CENTER, new JScrollPane(utilisateurTable));
             add(BorderLayout.CENTER, contenu);
-            conn = DriverManager.getConnection("jdbc:sqlite:banque.db");
-            PreparedStatement pst = conn.prepareStatement("select * from users where status = ?");
-            pst.setInt(1, 0);
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
-                tableModel.addRow(new Object[]{rs.getInt("id"),
-                    rs.getString("username"),
-                    RoleType.values()[rs.getInt("role")]});
+            List<User> users = bankService.findAllUsers();
+            for (User user : users) {
+                tableModel.addRow(new Object[]{user.getId(),
+                    user.getLogin(),
+                    user.getRole()});
             }
-            pst.close();
-            conn.close();
-        } catch (SQLException ex) {
+        } catch (ServiceException ex) {
             Logger.getLogger(UtilisateurPanel.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
     }
 }

@@ -1,1 +1,6 @@
+<<<<<<< HEAD
 /target/
+=======
+target/
+*.class
+>>>>>>> 5b6726e7a8a1a9c7b2814e05f6c626f4a5c1bba1
