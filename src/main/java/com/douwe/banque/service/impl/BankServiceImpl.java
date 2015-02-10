@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  */
 public class BankServiceImpl implements IBankService {
 
-    private DaoFactory daoFactory;
+    private final DaoFactory daoFactory;
 
     public BankServiceImpl() {
         daoFactory = new DaoFactory();
@@ -468,7 +468,7 @@ public class BankServiceImpl implements IBankService {
     public Customer getSingleCustomerByName(String customer) throws ServiceException {
         try {
             Customer cust = daoFactory.getCustomerDao().findByName(customer);
-            if ((cust != null) && (cust.getStatus() != 0))
+            if ((cust == null) || (cust.getStatus() != 0))
                     return null;
             return cust;
         } catch (DataAccessException ex) {

@@ -23,18 +23,18 @@ public class UserDaoJDBC implements IUserDao {
     public User save(User user) throws DataAccessException {
         try {
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("insert into users(username, passwd, role, status) values(?,?,?,?)");
-            psmt.setString(1, user.getLogin());
-            psmt.setString(2, user.getPassword());
-            psmt.setInt(3, user.getRole().ordinal());
-            psmt.setInt(4, user.getStatus());
-            psmt.executeUpdate();
-            ResultSet rs = psmt.getGeneratedKeys();
-            if (rs.next()) {
-                user.setId(rs.getInt(1));
+            try (PreparedStatement psmt = conn.prepareStatement("insert into users(username, passwd, role, status) values(?,?,?,?)")) {
+                psmt.setString(1, user.getLogin());
+                psmt.setString(2, user.getPassword());
+                psmt.setInt(3, user.getRole().ordinal());
+                psmt.setInt(4, user.getStatus());
+                psmt.executeUpdate();
+                try (ResultSet rs = psmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        user.setId(rs.getInt(1));
+                    }
+                }
             }
-            rs.close();
-            psmt.close();
             return user;
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);
@@ -46,10 +46,10 @@ public class UserDaoJDBC implements IUserDao {
     public void delete(User user) throws DataAccessException {
         try {
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("delete from users where id = ?");
-            psmt.setLong(1, user.getId());
-            psmt.executeUpdate();
-            psmt.close();
+            try (PreparedStatement psmt = conn.prepareStatement("delete from users where id = ?")) {
+                psmt.setLong(1, user.getId());
+                psmt.executeUpdate();
+            }
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);
             throw new DataAccessException(ex);
@@ -60,14 +60,14 @@ public class UserDaoJDBC implements IUserDao {
     public User update(User user) throws DataAccessException {
         try {
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("update users set username = ?, passwd = ?, role = ?, status = ? where id = ?");
-            psmt.setString(1, user.getLogin());
-            psmt.setString(2, user.getPassword());
-            psmt.setInt(3, user.getRole().ordinal());
-            psmt.setInt(4, user.getStatus());
-            psmt.setLong(5, user.getId());
-            psmt.executeUpdate();
-            psmt.close();
+            try (PreparedStatement psmt = conn.prepareStatement("update users set username = ?, passwd = ?, role = ?, status = ? where id = ?")) {
+                psmt.setString(1, user.getLogin());
+                psmt.setString(2, user.getPassword());
+                psmt.setInt(3, user.getRole().ordinal());
+                psmt.setInt(4, user.getStatus());
+                psmt.setLong(5, user.getId());
+                psmt.executeUpdate();
+            }
             return user;
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);
@@ -81,19 +81,19 @@ public class UserDaoJDBC implements IUserDao {
         try {
             User user = null;
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("select * from users where id = ?");
-            psmt.setInt(1, id);
-            ResultSet rs = psmt.executeQuery();
-            if (rs.next()) {
-                user = new User();
-                user.setId(rs.getInt("id"));
-                user.setLogin(rs.getString("username"));
-                user.setPassword(rs.getString("passwd"));
-                user.setRole(RoleType.values()[rs.getInt("role")]);
-                user.setStatus(rs.getInt("status"));
+            try (PreparedStatement psmt = conn.prepareStatement("select * from users where id = ?")) {
+                psmt.setInt(1, id);
+                try (ResultSet rs = psmt.executeQuery()) {
+                    if (rs.next()) {
+                        user = new User();
+                        user.setId(rs.getInt("id"));
+                        user.setLogin(rs.getString("username"));
+                        user.setPassword(rs.getString("passwd"));
+                        user.setRole(RoleType.values()[rs.getInt("role")]);
+                        user.setStatus(rs.getInt("status"));
+                    }
+                }
             }
-            rs.close();
-            psmt.close();
             return user;
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);
@@ -106,19 +106,17 @@ public class UserDaoJDBC implements IUserDao {
         try {
             List<User> resultat = new ArrayList<>();
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("select * from users");
-            ResultSet rs = psmt.executeQuery();
-            while (rs.next()) {
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setLogin(rs.getString("username"));
-                user.setPassword(rs.getString("passwd"));
-                user.setRole(RoleType.values()[rs.getInt("role")]);
-                user.setStatus(rs.getInt("status"));
-                resultat.add(user);
+            try (PreparedStatement psmt = conn.prepareStatement("select * from users"); ResultSet rs = psmt.executeQuery()) {
+                while (rs.next()) {
+                    User user = new User();
+                    user.setId(rs.getInt("id"));
+                    user.setLogin(rs.getString("username"));
+                    user.setPassword(rs.getString("passwd"));
+                    user.setRole(RoleType.values()[rs.getInt("role")]);
+                    user.setStatus(rs.getInt("status"));
+                    resultat.add(user);
+                }
             }
-            rs.close();
-            psmt.close();
             return resultat;
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);
@@ -131,19 +129,19 @@ public class UserDaoJDBC implements IUserDao {
         User user = null;
         try {
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("select * from users where username like ?");
-            psmt.setString(1, login);
-            ResultSet rs = psmt.executeQuery();
-            if (rs.next()) {
-                user = new User();
-                user.setId(rs.getInt("id"));
-                user.setLogin(rs.getString("username"));
-                user.setPassword(rs.getString("passwd"));
-                user.setRole(RoleType.values()[rs.getInt("role")]);
-                user.setStatus(rs.getInt("status"));
+            try (PreparedStatement psmt = conn.prepareStatement("select * from users where username like ?")) {
+                psmt.setString(1, login);
+                try (ResultSet rs = psmt.executeQuery()) {
+                    if (rs.next()) {
+                        user = new User();
+                        user.setId(rs.getInt("id"));
+                        user.setLogin(rs.getString("username"));
+                        user.setPassword(rs.getString("passwd"));
+                        user.setRole(RoleType.values()[rs.getInt("role")]);
+                        user.setStatus(rs.getInt("status"));
+                    }
+                }
             }
-            rs.close();
-            psmt.close();
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);
             throw  new DataAccessException(ex);
@@ -156,20 +154,20 @@ public class UserDaoJDBC implements IUserDao {
         try {
             List<User> resultat = new ArrayList<>();
             Connection conn = JDBCConnectionFactory.getConnection();
-            PreparedStatement psmt = conn.prepareStatement("select * from users where status = ?");
-            psmt.setInt(1, status);
-            ResultSet rs = psmt.executeQuery();
-            while (rs.next()) {
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setLogin(rs.getString("username"));
-                user.setPassword(rs.getString("passwd"));
-                user.setRole(RoleType.values()[rs.getInt("role")]);
-                user.setStatus(rs.getInt("status"));
-                resultat.add(user);
+            try (PreparedStatement psmt = conn.prepareStatement("select * from users where status = ?")) {
+                psmt.setInt(1, status);
+                try (ResultSet rs = psmt.executeQuery()) {
+                    while (rs.next()) {
+                        User user = new User();
+                        user.setId(rs.getInt("id"));
+                        user.setLogin(rs.getString("username"));
+                        user.setPassword(rs.getString("passwd"));
+                        user.setRole(RoleType.values()[rs.getInt("role")]);
+                        user.setStatus(rs.getInt("status"));
+                        resultat.add(user);
+                    }
+                }
             }
-            rs.close();
-            psmt.close();
             return resultat;
         } catch (SQLException ex) {
             Logger.getLogger(UserDaoJDBC.class.getName()).log(Level.SEVERE, null, ex);

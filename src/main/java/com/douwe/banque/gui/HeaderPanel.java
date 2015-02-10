@@ -20,8 +20,8 @@ import org.jdesktop.swingx.JXHyperlink;
  */
 public abstract class HeaderPanel extends JPanel{
 
-    private JXHyperlink deconnexion;
-    private JLabel username;
+    private final JXHyperlink deconnexion;
+    private final JLabel username;
     public HeaderPanel(){
         setLayout(new FlowLayout(FlowLayout.RIGHT,10,10));        
         setBackground(new Color(166, 202, 240));
@@ -40,6 +40,7 @@ public abstract class HeaderPanel extends JPanel{
         //add(BorderLayout.CENTER,pan);
         deconnexion.addActionListener(new ActionListener() {
 
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 deconnexion();
                 setEnabledHeader(false);
@@ -57,7 +58,9 @@ public abstract class HeaderPanel extends JPanel{
         ((Graphics2D)g).setPaint(gp);
         g.setFont(font);
         g.setColor(Color.yellow);
-        g.drawString("Ma banque vraiment populaire",310,80);
+        g.drawString("Ma banque vraiment populaire",340,80);
+        g.setColor(Color.ORANGE);
+        g.drawString("Je suis trop fort en design et en choix de couleur",260,120);
     }
 
     public void setEnabledHeader(boolean status){
